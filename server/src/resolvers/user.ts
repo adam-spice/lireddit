@@ -11,6 +11,8 @@ import {
 } from "type-graphql";
 import { User } from "../entities/User";
 import { MyContext } from "../types";
+import { EntityManager } from "@mikro-orm/postgresql";
+import { COOKIE_NAME } from "../constants";
 
 @InputType()
 class UsernamePasswordInput {
@@ -77,12 +79,24 @@ export class UserResolver {
     }
 
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, {
-      username: options.username,
-      password: hashedPassword,
-    });
+    let user;
     try {
-      await em.persistAndFlush(user);
+      const result = await (em as EntityManager)
+        .createQueryBuilder(User)
+        .getKnexQuery()
+        .insert({
+          username: options.username,
+          password: hashedPassword,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .returning(["id", "username", "created_at", "updated_at"]);
+
+      user = result[0];
+      user.createdAt = user.created_at;
+      user.updatedAt = user.updated_at;
+      delete user.created_at;
+      delete user.updated_at;
     } catch (err) {
       if (err.code === "23505" || err.detail.includes("already exists")) {
         // duplicate username error
@@ -95,12 +109,12 @@ export class UserResolver {
           ],
         };
       }
-
-      // stor user id session
-      // this will set a cookie for the user
-      // and keep them logged in
-      req.session.userId = user.id;
     }
+    // store user id session
+    // this will set a cookie for the user
+    // and keep them logged in
+    req.session.userId = user.id;
+    console.log("req.session", req.session);
     return { user };
   }
 
@@ -133,8 +147,25 @@ export class UserResolver {
     }
 
     req.session.userId = user.id;
-    console.log("req.session", req.session);
 
     return { user };
+  }
+
+  @Mutation(() => Boolean)
+  logout(@Ctx() { req, res }: MyContext) {
+    return new Promise((resolve) =>
+      req.session.destroy((err) => {
+        res.clearCookie(COOKIE_NAME);
+        if (err) {
+          console.log(
+            "🚀 ~ file: user.ts ~ line 158 ~ UserResolver ~ req.session.destroy ~ err",
+            err
+          );
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      })
+    );
   }
 }
