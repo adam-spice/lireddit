@@ -12,6 +12,7 @@ import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
 import { MyContext } from "./types";
+import cors from "cors";
 
 const main = async () => {
   const orm = await MikroORM.init(microConfig);
@@ -21,6 +22,13 @@ const main = async () => {
 
   const RedisStore = connectRedis(session);
   const redisClient = redis.createClient();
+
+  app.use(
+    cors({
+      origin: "http://localhost:3000",
+      credentials: true,
+    })
+  );
 
   redisClient.on("error", function (err) {
     console.log("err", err);
@@ -49,7 +57,10 @@ const main = async () => {
     context: ({ req, res }): MyContext => ({ em: orm.em, req, res }),
   });
 
-  apolloServer.applyMiddleware({ app });
+  apolloServer.applyMiddleware({
+    app,
+    cors: false,
+  });
 
   app.listen(PORT, () => {
     console.log(`server started on port: ${PORT}`);
