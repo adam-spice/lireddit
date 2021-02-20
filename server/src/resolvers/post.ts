@@ -1,7 +1,31 @@
-import { Arg, Int, Mutation, Query, Resolver } from "type-graphql";
+import { validatePost } from "../utils/validatePost";
+import {
+  Arg,
+  Ctx,
+  Field,
+  Int,
+  Mutation,
+  ObjectType,
+  Query,
+  Resolver,
+  UseMiddleware,
+} from "type-graphql";
 import { Post } from "../entities/Post";
+import { isAuth } from "../middleware/isAuth";
+import { MyContext } from "../types";
+import { FieldError } from "./FieldError";
+import { PostInput } from "./PostInput";
 
-@Resolver()
+@ObjectType()
+class PostResponse {
+  @Field(() => [FieldError], { nullable: true })
+  errors?: FieldError[];
+
+  @Field(() => Post, { nullable: true })
+  post?: Post;
+}
+
+@Resolver(Post)
 export class PostResolver {
   @Query(() => [Post])
   posts(): Promise<Post[]> {
@@ -13,9 +37,22 @@ export class PostResolver {
     return Post.findOne(id);
   }
 
-  @Mutation(() => Post)
-  async createPost(@Arg("title") title: string): Promise<Post> {
-    return Post.create({ title }).save();
+  @Mutation(() => PostResponse)
+  @UseMiddleware(isAuth)
+  async createPost(
+    @Arg("input") input: PostInput,
+    @Ctx() { req }: MyContext
+  ): Promise<PostResponse> {
+    const errors = validatePost(input);
+    if (errors) {
+      return { errors };
+    }
+    const post = await Post.create({
+      ...input,
+      creatorId: req.session.userId,
+    }).save();
+
+    return { post };
   }
 
   @Mutation(() => Post, { nullable: true })

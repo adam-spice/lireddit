@@ -1,14 +1,13 @@
 import { Box } from "@chakra-ui/react";
 import React from "react";
 
-interface registerProps {
-  variant?: "small" | "regular";
+export type WrapperVariant = "small" | "regular";
+
+interface wrapperProps {
+  variant?: WrapperVariant;
 }
 
-const Wrapper: React.FC<registerProps> = ({
-  children,
-  variant = "regular",
-}) => {
+const Wrapper: React.FC<wrapperProps> = ({ children, variant = "regular" }) => {
   return (
     <Box
       mt={8}

@@ -20,15 +20,8 @@ import { MyContext } from "../types";
 import { sendEmail } from "../utils/sendEmail";
 import { validatePassword } from "../utils/validatePassword";
 import { validateRegister } from "../utils/validateRegister";
+import { FieldError } from "./FieldError";
 import { UsernamePasswordInput } from "./UsernamePasswordInput";
-
-@ObjectType()
-class FieldError {
-  @Field()
-  field: string;
-  @Field()
-  message: string;
-}
 
 @ObjectType()
 class UserResponse {
@@ -154,7 +147,7 @@ export class UserResolver {
     // this will set a cookie for the user
     // and keep them logged in
     req.session.userId = user.id;
-    console.log("req.session", req.session);
+
     return { user };
   }
 
